@@ -434,27 +434,6 @@ class Model:
             max_tokens=150
         )
         return response.choices[0].text
-    files_loaded = []
-    for model_settings_fname in model_settings_fnames:
-        if not os.path.exists(model_settings_fname):
-            continue
-        
-        try:
-            with open(model_settings_fname, "r") as model_settings_file:
-                model_settings_list = yaml.safe_load(model_settings_file)
-
-            for model_settings_dict in model_settings_list:
-                model_settings = ModelSettings(**model_settings_dict)
-                existing_model_settings = next((ms for ms in MODEL_SETTINGS if ms.name == model_settings.name), None)
-                
-                if existing_model_settings:
-                    MODEL_SETTINGS.remove(existing_model_settings)
-                MODEL_SETTINGS.append(model_settings)
-        except Exception as e:
-            raise Exception(f"Error loading model settings from {model_settings_fname}: {e}")
-        files_loaded.append(model_settings_fname)
-
-    return files_loaded
 
 
 def register_litellm_models(model_fnames):
