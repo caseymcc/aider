@@ -427,7 +427,13 @@ class Model:
 
         return res
     
-def register_models(model_settings_fnames):
+    def query(self, prompt):
+        response = litellm.Completion.create(
+            model=self.name,
+            prompt=prompt,
+            max_tokens=150
+        )
+        return response.choices[0].text
     files_loaded = []
     for model_settings_fname in model_settings_fnames:
         if not os.path.exists(model_settings_fname):
