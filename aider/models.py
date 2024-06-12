@@ -458,21 +458,6 @@ def register_models(model_settings_fnames):
         files_loaded.append(model_settings_fname)
 
     return files_loaded
-    files_loaded = []
-    for model_fname in model_fnames:
-        if not os.path.exists(model_fname):
-            continue
-        
-        try:
-            with open(model_fname, "r") as model_def_file:
-                model_def = json.load(model_def_file)
-            litellm.register_model(model_def)
-        except Exception as e:
-            raise Exception(f"Error loading model definition from {model_fname}: {e}")
-        
-        files_loaded.append(model_fname)
-
-    return files_loaded
 
 
 def validate_variables(vars):
