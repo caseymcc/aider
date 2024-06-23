@@ -17,6 +17,7 @@ from aider.io import InputOutput
 from aider.litellm import litellm  # noqa: F401; properly init litellm on launch
 from aider.repo import GitRepo
 from aider.versioncheck import check_version
+from aider.coders.format_coders import register_coders
 
 from .dump import dump  # noqa: F401
 
@@ -379,6 +380,7 @@ def main(argv=None, input=None, output=None, force_git_root=None, return_coder=F
 
     register_models(git_root, args.model_settings_file, io)
     register_litellm_models(git_root, args.model_metadata_file, io)
+    register_coders()
     
     main_model = models.Model(args.model, weak_model=args.weak_model)
 

@@ -1,18 +1,16 @@
-import openai
 import json
+from aider.models import Model
 
 class PromptOptimizer:
     def __init__(self, model_name, test_cases):
-        self.model_name = model_name
+        self.model = Model(model_name)
         self.test_cases = test_cases
+        
+        
 
     def query_model(self, prompt):
-        response = openai.Completion.create(
-            model=self.model_name,
-            prompt=prompt,
-            max_tokens=150
-        )
-        return response.choices[0].text.strip()
+        response = self.model.query(prompt)
+        return response.strip()
 
     def generate_alternative_prompts(self, original_prompt):
         # This function should query the LLM to generate alternative prompts

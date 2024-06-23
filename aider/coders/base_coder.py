@@ -28,6 +28,7 @@ from aider.repo import GitRepo
 from aider.repomap import RepoMap
 from aider.sendchat import send_with_retries
 from aider.utils import is_image_file
+from .format_coders import FormatCoders
 
 from ..dump import dump  # noqa: F401
 
@@ -121,17 +122,10 @@ class Coder:
 
             kwargs = use_kwargs
 
-        if edit_format == "diff":
-            res = EditBlockCoder(main_model, io, **kwargs)
-        elif edit_format == "diff-fenced":
-            res = EditBlockFencedCoder(main_model, io, **kwargs)
-        elif edit_format == "whole":
-            res = WholeFileCoder(main_model, io, **kwargs)
-        elif edit_format == "udiff":
-            res = UnifiedDiffCoder(main_model, io, **kwargs)
-        else:
+        if edit_format not in FormatCoders:
             raise ValueError(f"Unknown edit format {edit_format}")
-
+        
+        res = FormatCoders[edit_format]["coder"](main_model, io, **kwargs)
         res.original_kwargs = dict(kwargs)
 
         return res
