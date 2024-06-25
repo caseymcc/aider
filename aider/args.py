@@ -72,6 +72,11 @@ def get_parser(default_config_files, git_root):
         help="Log the conversation with the LLM to this file (for example, .aider.llm.history)",
     )
     group.add_argument(
+        "--use-stdout-stderr",
+        action="store_true",
+        help="Use stdout and stderr for console output",
+    )
+    group.add_argument(
         "files", metavar="FILE", nargs="*", help="files to edit with an LLM (optional)"
     )
     group.add_argument(
