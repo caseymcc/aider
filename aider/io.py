@@ -1,5 +1,6 @@
 import base64
 import os
+import sys
 from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
@@ -109,7 +110,9 @@ class InputOutput:
         dry_run=False,
         llm_history_file=None,
         editingmode=EditingMode.EMACS,
+        use_stdout=False,
     ):
+        self.use_stdout = use_stdout
         self.editingmode = editingmode
         no_color = os.environ.get("NO_COLOR")
         if no_color is not None and no_color != "":
@@ -138,10 +141,14 @@ class InputOutput:
         self.encoding = encoding
         self.dry_run = dry_run
 
-        if pretty:
-            self.console = Console()
+        if self.use_stdout:
+            self.console = Console(file=sys.stdout)
+            self.error_console = Console(file=sys.stderr)
         else:
-            self.console = Console(force_terminal=False, no_color=True)
+            if pretty:
+                self.console = Console()
+            else:
+                self.console = Console(force_terminal=False, no_color=True)
 
         current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         self.append_chat_history(f"\n# aider chat started at {current_time}\n\n")
@@ -171,15 +178,7 @@ class InputOutput:
         except FileNotFoundError:
             self.tool_error(f"{filename}: file not found error")
             return
-        except IsADirectoryError:
-            self.tool_error(f"{filename}: is a directory")
-            return
-        except UnicodeError as e:
-            self.tool_error(f"{filename}: {e}")
-            self.tool_error("Use --encoding to set the unicode encoding.")
-            return
-
-    def write_text(self, filename, content):
+        except IsADirectoryError:sys
         if self.dry_run:
             return
         with open(str(filename), "w", encoding=self.encoding) as f:
@@ -355,7 +354,10 @@ class InputOutput:
 
         message = Text(message)
         style = dict(style=self.tool_error_color) if self.tool_error_color else dict()
-        self.console.print(message, **style)
+        if self.use_stdout:
+            self.error_console.print(message, **style)
+        else:
+            self.console.print(message, **style)
 
     def tool_output(self, *messages, log_only=False):
         if messages:
@@ -366,7 +368,10 @@ class InputOutput:
         if not log_only:
             messages = list(map(Text, messages))
             style = dict(style=self.tool_output_color) if self.tool_output_color else dict()
-            self.console.print(*messages, **style)
+            if self.use_stdout:
+                self.console.print(*messages, **style)
+            else:
+                self.console.print(*messages, **style)
 
     def append_chat_history(self, text, linebreak=False, blockquote=False, strip=True):
         if blockquote:
@@ -382,3 +387,6 @@ class InputOutput:
         if self.chat_history_file is not None:
             with self.chat_history_file.open("a", encoding=self.encoding) as f:
                 f.write(text)
+                
+    def print(self, *args, **kwargs):
+        self.console.print(*args, **kwargs)
