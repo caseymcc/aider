@@ -185,11 +185,14 @@ class InputOutput:
             f.write(content)
 
     def get_input(self, root, rel_fnames, addable_rel_fnames, commands):
-        if self.pretty:
-            style = dict(style=self.user_input_color) if self.user_input_color else dict()
-            self.console.rule(**style)
+        if self.use_stdout:
+            print("> ", end="", flush=True)
         else:
-            print()
+            if self.pretty:
+                style = dict(style=self.user_input_color) if self.user_input_color else dict()
+                self.console.rule(**style)
+            else:
+                print()
 
         rel_fnames = list(rel_fnames)
         show = " ".join(rel_fnames)
@@ -239,10 +242,13 @@ class InputOutput:
             def _(event):
                 event.current_buffer.insert_text("\n")
 
-            session = PromptSession(
-                key_bindings=kb, editing_mode=self.editingmode, **session_kwargs
-            )
-            line = session.prompt()
+            if self.use_stdout:
+                line = input(show)
+            else:
+                session = PromptSession(
+                    key_bindings=kb, editing_mode=self.editingmode, **session_kwargs
+                )
+                line = session.prompt()
 
             if line and line[0] == "{" and not multiline_input:
                 multiline_input = True
