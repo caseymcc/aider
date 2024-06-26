@@ -179,6 +179,19 @@ class InputOutput:
             self.tool_error(f"{filename}: file not found error")
             return
         except IsADirectoryError:sys
+        try:
+            with open(str(filename), "r", encoding=self.encoding) as f:
+                content = f.read()
+        except FileNotFoundError:
+            self.tool_error(f"{filename}: file not found error")
+            return
+        except IsADirectoryError:
+            self.tool_error(f"{filename}: is a directory")
+            return
+        except Exception as e:
+            self.tool_error(f"{filename}: {e}")
+            return
+
         if self.dry_run:
             return
         with open(str(filename), "w", encoding=self.encoding) as f:
