@@ -1,8 +1,10 @@
 import base64
 import os
+import sys
 from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
+import json
 
 from prompt_toolkit.completion import Completer, Completion
 from prompt_toolkit.enums import EditingMode
@@ -124,11 +126,14 @@ class InputOutput:
         user_input_color="blue",
         tool_output_color=None,
         tool_error_color="red",
+        tool_error_notification="yellow",
         encoding="utf-8",
         dry_run=False,
         llm_history_file=None,
         editingmode=EditingMode.EMACS,
+        api_mode=False,
     ):
+        self.api_mode = api_mode
         self.editingmode = editingmode
         no_color = os.environ.get("NO_COLOR")
         if no_color is not None and no_color != "":
@@ -137,6 +142,7 @@ class InputOutput:
         self.user_input_color = user_input_color if pretty else None
         self.tool_output_color = tool_output_color if pretty else None
         self.tool_error_color = tool_error_color if pretty else None
+        self.tool_error_notification = tool_error_notification if pretty else None
 
         self.input = input
         self.output = output
@@ -157,10 +163,14 @@ class InputOutput:
         self.encoding = encoding
         self.dry_run = dry_run
 
-        if pretty:
-            self.console = Console()
+        if self.api_mode:
+            self.console = Console(file=sys.stdout)
+            self.error_console = Console(file=sys.stderr)
         else:
-            self.console = Console(force_terminal=False, no_color=True)
+            if pretty:
+                self.console = Console()
+            else:
+                self.console = Console(force_terminal=False, no_color=True)
 
         current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         self.append_chat_history(f"\n# aider chat started at {current_time}\n\n")
@@ -204,80 +214,112 @@ class InputOutput:
         with open(str(filename), "w", encoding=self.encoding) as f:
             f.write(content)
 
+    def translate_api_input(self, commands):
+        import json
+
+        command = None
+        arguments = {}
+        
+        input_value=""
+        
+        try:
+            raw_input = input()
+            command_data = json.loads(raw_input)
+            command = command_data.get("command")
+            arguments = command_data.get("arguments", {})
+        except json.JSONDecodeError as e:
+            self.tool_error(f"Invalid input or api mode: {e}")
+            return input_value
+        
+        if not command:
+            self.tool_error("No command provided")
+            return input_value
+        
+        value = ""
+        if "value" in arguments:
+                value = arguments.get("value")
+                
+        if command in commands:
+            input_value = f"/{command} {value}"
+        else:
+            input_value = f"{value}"
+        return input_value
+                
+        
     def get_input(self, root, rel_fnames, addable_rel_fnames, commands):
-        if self.pretty:
-            style = dict(style=self.user_input_color) if self.user_input_color else dict()
-            self.console.rule(**style)
+        if self.api_mode:
+            inp = get_api_input(commands)
         else:
-            print()
+            print("> ", end="", flush=True)
 
-        rel_fnames = list(rel_fnames)
-        show = " ".join(rel_fnames)
-        if len(show) > 10:
-            show += "\n"
-        show += "> "
+            rel_fnames = list(rel_fnames)
+            show = " ".join(rel_fnames)
+            if len(show) > 10:
+                show += "\n"
+            show += "> "
 
-        inp = ""
-        multiline_input = False
+            inp = ""
+            multiline_input = False
 
-        if self.user_input_color:
-            style = Style.from_dict(
-                {
-                    "": self.user_input_color,
-                    "pygments.literal.string": f"bold italic {self.user_input_color}",
-                }
-            )
-        else:
-            style = None
-
-        completer_instance = AutoCompleter(
-            root, rel_fnames, addable_rel_fnames, commands, self.encoding
-        )
-
-        while True:
-            if multiline_input:
-                show = ". "
-
-            session_kwargs = {
-                "message": show,
-                "completer": completer_instance,
-                "reserve_space_for_menu": 4,
-                "complete_style": CompleteStyle.MULTI_COLUMN,
-                "input": self.input,
-                "output": self.output,
-                "lexer": PygmentsLexer(MarkdownLexer),
-            }
-            if style:
-                session_kwargs["style"] = style
-
-            if self.input_history_file is not None:
-                session_kwargs["history"] = FileHistory(self.input_history_file)
-
-            kb = KeyBindings()
-
-            @kb.add("escape", "c-m", eager=True)
-            def _(event):
-                event.current_buffer.insert_text("\n")
-
-            session = PromptSession(
-                key_bindings=kb, editing_mode=self.editingmode, **session_kwargs
-            )
-            line = session.prompt()
-
-            if line and line[0] == "{" and not multiline_input:
-                multiline_input = True
-                inp += line[1:] + "\n"
-                continue
-            elif line and line[-1] == "}" and multiline_input:
-                inp += line[:-1] + "\n"
-                break
-            elif multiline_input:
-                inp += line + "\n"
+            if self.user_input_color:
+                style = Style.from_dict(
+                    {
+                        "": self.user_input_color,
+                        "pygments.literal.string": f"bold italic {self.user_input_color}",
+                    }
+                )
             else:
-                inp = line
-                break
+                style = None
 
-        print()
+            completer_instance = AutoCompleter(
+                root, rel_fnames, addable_rel_fnames, commands, self.encoding
+            )
+
+            while True:
+                if multiline_input:
+                    show = ". "
+
+                session_kwargs = {
+                    "message": show,
+                    "completer": completer_instance,
+                    "reserve_space_for_menu": 4,
+                    "complete_style": CompleteStyle.MULTI_COLUMN,
+                    "input": self.input,
+                    "output": self.output,
+                    "lexer": PygmentsLexer(MarkdownLexer),
+                }
+                if style:
+                    session_kwargs["style"] = style
+
+                if self.input_history_file is not None:
+                    session_kwargs["history"] = FileHistory(self.input_history_file)
+
+                kb = KeyBindings()
+
+                @kb.add("escape", "c-m", eager=True)
+                def _(event):
+                    event.current_buffer.insert_text("\n")
+
+                session = PromptSession(
+                    key_bindings=kb, editing_mode=self.editingmode, **session_kwargs
+                )
+                line = session.prompt()
+
+                if line and line[0] == "{" and not multiline_input:
+                    multiline_input = True
+                    inp += line[1:] + "\n"
+                    continue
+                elif line and line[-1] == "}" and multiline_input:
+                    inp += line[:-1] + "\n"
+                    break
+                elif multiline_input:
+                    inp += line + "\n"
+                else:
+                    inp = line
+                    break
+
+            print()
+        
         self.user_input(inp)
         return inp
 
@@ -303,8 +345,7 @@ class InputOutput:
 
     def user_input(self, inp, log_only=True):
         if not log_only:
-            style = dict(style=self.user_input_color) if self.user_input_color else dict()
-            self.console.print(inp, **style)
+            self.console_print("user", inp)
 
         prefix = "####"
         if inp:
@@ -342,7 +383,7 @@ class InputOutput:
         return res.strip().lower().startswith("y")
 
     def prompt_ask(self, question, default=None):
-        self.num_user_asks += 1
+        self.num_user_asks += 1 
 
         if self.yes is True:
             res = "yes"
@@ -358,6 +399,16 @@ class InputOutput:
 
         return res
 
+    def generate_response(self, status, result=None, output_format="json"):
+        response = {
+            "status": status,
+            "result": result or {},
+        }
+        return json.dumps(response)
+    
+    def tool_notification(self, message="", strip=True):
+        self.console_print("notification", message)
+        
     def tool_error(self, message="", strip=True):
         self.num_error_outputs += 1
 
@@ -372,9 +423,10 @@ class InputOutput:
                     hist = message
                 self.append_chat_history(hist, linebreak=True, blockquote=True)
 
-        message = Text(message)
-        style = dict(style=self.tool_error_color) if self.tool_error_color else dict()
-        self.console.print(message, **style)
+        self.console_print("error", message)
+            
+    def tool_notify(self, message="", strip=True):
+        self.console_print("notification", message)
 
     def tool_output(self, *messages, log_only=False):
         if messages:
@@ -384,8 +436,7 @@ class InputOutput:
 
         if not log_only:
             messages = list(map(Text, messages))
-            style = dict(style=self.tool_output_color) if self.tool_output_color else dict()
-            self.console.print(*messages, **style)
+            self.console_print("output", messages)
 
     def append_chat_history(self, text, linebreak=False, blockquote=False, strip=True):
         if blockquote:
@@ -401,3 +452,29 @@ class InputOutput:
         if self.chat_history_file is not None:
             with self.chat_history_file.open("a", encoding=self.encoding) as f:
                 f.write(text)
+    
+    def console_print(self, type, messages):
+        if self.api_mode:
+            style = dict()
+            
+            if not isinstance(messages, list):
+                messages=[messages]
+            for message in messages:
+                if isinstance(message, Text):
+                    message= message.plain
+                self.console.print(self.generate_response(type, {"message":message}), **style)
+        else:    
+            if type == "error":
+                style = dict(style=self.tool_error_color) if self.tool_error_color else dict()
+            elif type == "notification":
+                style = dict(style=self.tool_error_notification) if self.tool_error_notification else dict
+            elif type == "output":
+                style = dict(style=self.tool_output_color) if self.tool_output_color else dict()
+            else:
+                style = dict(style=self.user_input_color) if self.user_input_color else dict()
+            
+            self.console.print(*messages, **style)
+                    
+    def print(self, *args, **kwargs):
+        message = ' '.join(map(str, args))
+        self.console_print("user", message)

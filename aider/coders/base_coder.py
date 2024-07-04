@@ -259,14 +259,7 @@ class Coder:
 
         self.dry_run = dry_run
         self.pretty = pretty
-
-        if pretty:
-            self.console = Console()
-        else:
-            self.console = Console(force_terminal=False, no_color=True)
-
         self.main_model = main_model
-
         self.show_diffs = show_diffs
 
         self.commands = Commands(self.io, self, voice_language)
@@ -1158,7 +1151,7 @@ class Coder:
         else:
             show_resp = Text(show_resp or "<no response>")
 
-        self.io.console.print(show_resp)
+        self.io.print(show_resp)
 
         if tokens is not None:
             self.io.tool_output(tokens)

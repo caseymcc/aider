@@ -340,6 +340,7 @@ def main(argv=None, input=None, output=None, force_git_root=None, return_coder=F
         encoding=args.encoding,
         llm_history_file=args.llm_history_file,
         editingmode=editing_mode,
+        api_mode=args.api,
     )
 
     fnames = [str(Path(fn).resolve()) for fn in args.files]
@@ -374,7 +375,7 @@ def main(argv=None, input=None, output=None, force_git_root=None, return_coder=F
             return main(argv, input, output, right_repo_root, return_coder=return_coder)
 
     if not args.skip_check_update:
-        check_version(io.tool_error)
+        check_version(io.tool_notification)
 
     if args.check_update:
         update_available = check_version(lambda msg: None)

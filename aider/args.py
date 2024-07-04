@@ -29,6 +29,11 @@ def get_parser(default_config_files, git_root):
     )
     group = parser.add_argument_group("Main")
     group.add_argument(
+        "--api",
+        action="store_true",
+        help="Changes the aider input/output to mode the accepts/responds in commands",
+    )
+    group.add_argument(
         "files", metavar="FILE", nargs="*", help="files to edit with an LLM (optional)"
     )
     group.add_argument(
