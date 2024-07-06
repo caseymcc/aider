@@ -219,6 +219,7 @@ class InputOutput:
 
         command = None
         arguments = {}
+        command_list = commands.get_commands()
         
         input_value=""
         
@@ -239,16 +240,19 @@ class InputOutput:
         if "value" in arguments:
                 value = arguments.get("value")
                 
-        if command in commands:
-            input_value = f"/{command} {value}"
+        command_search = f"/{command}" 
+        if command_search in command_list:
+            input_value = f"/{command} {value}\n"
+            print(f"command: {input_value}")
         else:
-            input_value = f"{value}"
+            input_value = f"{value}\n"
+            print(f"user: {input_value}")
         return input_value
                 
         
     def get_input(self, root, rel_fnames, addable_rel_fnames, commands):
         if self.api_mode:
-            inp = get_api_input(commands)
+            inp = self.translate_api_input(commands)
         else:
             print("> ", end="", flush=True)
 
@@ -399,9 +403,9 @@ class InputOutput:
 
         return res
 
-    def generate_response(self, status, result=None, output_format="json"):
+    def generate_response(self, event, result=None, output_format="json"):
         response = {
-            "status": status,
+            "event": event,
             "result": result or {},
         }
         return json.dumps(response)
@@ -437,6 +441,12 @@ class InputOutput:
         if not log_only:
             messages = list(map(Text, messages))
             self.console_print("output", messages)
+            
+    def tool_diff(self, message):
+        if self.api_mode:
+            self.console.print(self.generate_response("diff", {"message":message}))
+        else:
+            print(message)
 
     def append_chat_history(self, text, linebreak=False, blockquote=False, strip=True):
         if blockquote:
@@ -478,3 +488,7 @@ class InputOutput:
     def print(self, *args, **kwargs):
         message = ' '.join(map(str, args))
         self.console_print("user", message)
+        
+    def new_line(self):
+        if not self.api_mode:
+            print()

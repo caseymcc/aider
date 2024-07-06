@@ -811,6 +811,7 @@ class Coder:
         if self.show_pretty() and self.stream:
             mdargs = dict(style=self.assistant_output_color, code_theme=self.code_theme)
             self.mdstream = MarkdownStream(mdargs=mdargs)
+            print("********************MarkdownStream********************")
         else:
             self.mdstream = None
 
@@ -1100,6 +1101,7 @@ class Coder:
 
     def show_send_output(self, completion):
         if self.verbose:
+            print("*** completion")
             print(completion)
 
         if not completion.choices:
@@ -1151,6 +1153,7 @@ class Coder:
         else:
             show_resp = Text(show_resp or "<no response>")
 
+        print("*** show_resp")
         self.io.print(show_resp)
 
         if tokens is not None:
