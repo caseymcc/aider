@@ -1,5 +1,6 @@
 import itertools
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -181,7 +182,6 @@ def split_chat_history_markdown(text, include_tool=False):
 
     return messages
 
-
 def get_pip_install(args):
     cmd = [
         sys.executable,
@@ -267,3 +267,53 @@ def check_pip_install_extra(io, module, prompt, pip_install_cmd):
 
     print()
     print(f"Failed to install {pip_install_cmd[0]}")
+    
+def get_file_mentions(rel_fname, addable_rel_fnames, content):
+    words = set(word for word in content.split())
+
+    # drop sentence punctuation from the end
+    words = set(word.rstrip(",.!;:") for word in words)
+
+    # strip away all kinds of quotes
+    quotes = "".join(['"', "'", "`"])
+    words = set(word.strip(quotes) for word in words)
+
+    addable_rel_fnames = self.get_addable_relative_files()
+
+    mentioned_rel_fnames = set()
+    fname_to_rel_fnames = {}
+    for rel_fname in addable_rel_fnames:
+        normalized_rel_fname = rel_fname.replace("\\", "/")
+        normalized_words = set(word.replace("\\", "/") for word in words)
+        if normalized_rel_fname in normalized_words:
+            mentioned_rel_fnames.add(rel_fname)
+
+        fname = os.path.basename(rel_fname)
+
+        # Don't add basenames that could be plain words like "run" or "make"
+        if "/" in fname or "\\" in fname or "." in fname or "_" in fname or "-" in fname:
+            if fname not in fname_to_rel_fnames:
+                fname_to_rel_fnames[fname] = []
+            fname_to_rel_fnames[fname].append(rel_fname)
+
+    for fname, rel_fnames in fname_to_rel_fnames.items():
+        if len(rel_fnames) == 1 and fname in words:
+            mentioned_rel_fnames.add(rel_fnames[0])
+
+    return mentioned_rel_fnames
+        
+def check_for_urls(self, inp):
+    url_pattern = re.compile(r"(https?://[^\s/$.?#].[^\s]*[^\s,.])")
+    urls = list(set(url_pattern.findall(inp)))  # Use set to remove duplicates
+#        added_urls = []
+#        for url in urls:
+#            if url not in self.rejected_urls:
+#                if self.io.confirm_ask(f"Add {url} to the chat?"):
+#                    inp += "\n\n"
+#                    inp += self.commands.cmd_web(url)
+#                    added_urls.append(url)
+#                else:
+#                    self.rejected_urls.add(url)
+#
+#        return added_urls
+    return inp

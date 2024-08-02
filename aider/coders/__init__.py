@@ -1,3 +1,4 @@
+from .base_coder import Command, CommandResults, Coder
 from .base_coder import Coder
 from .editblock_coder import EditBlockCoder
 from .editblock_fenced_coder import EditBlockFencedCoder
@@ -7,6 +8,8 @@ from .wholefile_coder import WholeFileCoder
 from .ask_coder import AskCoder
 
 __all__ = [
+    Command, 
+    CommandResults,
     HelpCoder,
     AskCoder,
     Coder,

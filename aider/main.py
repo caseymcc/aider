@@ -15,9 +15,9 @@ from aider.coders import Coder
 from aider.commands import Commands, SwitchCoder
 from aider.history import ChatSummary
 from aider.io import InputOutput
+from aider.terminal import Terminal
 from aider.llm import litellm  # noqa: F401; properly init litellm on launch
 from aider.repo import GitRepo
-from aider.versioncheck import check_version
 
 from .dump import dump  # noqa: F401
 
@@ -50,14 +50,14 @@ def guessed_wrong_repo(io, git_root, fnames, git_dname):
     return str(check_repo)
 
 
-def setup_git(git_root, io):
+def setup_git(git_root, terminal):
     repo = None
     if git_root:
         repo = git.Repo(git_root)
-    elif io.confirm_ask("No git repo found, create one to track GPT's changes (recommended)?"):
+    elif terminal.confirm_ask("No git repo found, create one to track GPT's changes (recommended)?"):
         git_root = str(Path.cwd().resolve())
         repo = git.Repo.init(git_root)
-        io.tool_output("Git repository created in the current working directory.")
+        terminal.print("Git repository created in the current working directory.")
         check_gitignore(git_root, io, False)
 
     if not repo:
@@ -81,10 +81,10 @@ def setup_git(git_root, io):
     with repo.config_writer() as git_config:
         if not user_name:
             git_config.set_value("user", "name", "Your Name")
-            io.tool_error('Update git name with: git config user.name "Your Name"')
+            terminal.print_error('Update git name with: git config user.name "Your Name"')
         if not user_email:
             git_config.set_value("user", "email", "you@example.com")
-            io.tool_error('Update git email with: git config user.email "you@example.com"')
+            terminal.print_error('Update git email with: git config user.email "you@example.com"')
 
     return repo.working_tree_dir
 
@@ -120,7 +120,7 @@ def check_gitignore(git_root, io, ask=True):
     content += pat + "\n"
     io.write_text(gitignore_file, content)
 
-    io.tool_output(f"Added {pat} to .gitignore")
+    terminal.print(f"Added {pat} to .gitignore")
 
 
 def format_settings(parser, args):
@@ -199,7 +199,7 @@ def launch_gui(args):
     # sys.argv = ['streamlit', 'run', '--'] + args
 
 
-def parse_lint_cmds(lint_cmds, io):
+def parse_lint_cmds(lint_cmds, terminal):
     err = False
     res = dict()
     for lint_cmd in lint_cmds:
@@ -217,9 +217,9 @@ def parse_lint_cmds(lint_cmds, io):
         if cmd:
             res[lang] = cmd
         else:
-            io.tool_error(f'Unable to parse --lint-cmd "{lint_cmd}"')
-            io.tool_error('The arg should be "language: cmd --args ..."')
-            io.tool_error('For example: --lint-cmd "python: flake8 --select=E9"')
+            terminal.print_error(f'Unable to parse --lint-cmd "{lint_cmd}"')
+            terminal.print_error('The arg should be "language: cmd --args ..."')
+            terminal.print_error('For example: --lint-cmd "python: flake8 --select=E9"')
             err = True
     if err:
         return
@@ -249,7 +249,7 @@ def generate_search_path_list(default_fname, git_root, command_line_file):
     return files
 
 
-def register_models(git_root, model_settings_fname, io, verbose=False):
+def register_models(git_root, model_settings_fname, terminal, verbose=False):
     model_settings_files = generate_search_path_list(
         ".aider.model.settings.yml", git_root, model_settings_fname
     )
@@ -258,13 +258,11 @@ def register_models(git_root, model_settings_fname, io, verbose=False):
         files_loaded = models.register_models(model_settings_files)
         if len(files_loaded) > 0:
             if verbose:
-                io.tool_output("Loaded model settings from:")
+                terminal.print("Loaded model settings from:)
                 for file_loaded in files_loaded:
-                    io.tool_output(f"  - {file_loaded}")  # noqa: E221
-        elif verbose:
-            io.tool_output("No model settings files loaded")
+                    terminal.print(f"  - {file_loaded}")  # noqa: E221
     except Exception as e:
-        io.tool_error(f"Error loading aider model settings: {e}")
+        terminal.print_error(f"Error loading aider model settings: {e}")
         return 1
 
     if verbose:
@@ -296,12 +294,12 @@ def register_litellm_models(git_root, model_metadata_fname, io, verbose=False):
 
     try:
         model_metadata_files_loaded = models.register_litellm_models(model_metatdata_files)
-        if len(model_metadata_files_loaded) > 0 and verbose:
+        if len(model_metadata_files_loaded) > 0:
             io.tool_output("Loaded model metadata from:")
             for model_metadata_file in model_metadata_files_loaded:
-                io.tool_output(f"  - {model_metadata_file}")  # noqa: E221
+                terminal.print(f"  - {model_metadata_file}")  # noqa: E221
     except Exception as e:
-        io.tool_error(f"Error loading model metadata models: {e}")
+        terminal.print_error(f"Error loading model metadata models: {e}")
         return 1
 
 
@@ -332,7 +330,7 @@ def main(argv=None, input=None, output=None, force_git_root=None, return_coder=F
 
     # Parse again to include any arguments that might have been defined in .env
     args = parser.parse_args(argv)
-
+    
     if not args.verify_ssl:
         import httpx
 
@@ -357,18 +355,20 @@ def main(argv=None, input=None, output=None, force_git_root=None, return_coder=F
     editing_mode = EditingMode.VI if args.vim else EditingMode.EMACS
 
     io = InputOutput(
-        args.pretty,
-        args.yes,
+        args.encoding,
         args.input_history_file,
         args.chat_history_file,
+        args.llm_history_file,
+    )
+    
+    # Open handler early
+    terminal = Terminal(
+        args.yes,
         input=input,
         output=output,
         user_input_color=args.user_input_color,
         tool_output_color=args.tool_output_color,
         tool_error_color=args.tool_error_color,
-        dry_run=args.dry_run,
-        encoding=args.encoding,
-        llm_history_file=args.llm_history_file,
         editingmode=editing_mode,
     )
 
@@ -388,10 +388,10 @@ def main(argv=None, input=None, output=None, force_git_root=None, return_coder=F
         good = True
         for fname in all_files:
             if Path(fname).is_dir():
-                io.tool_error(f"{fname} is a directory, not provided alone.")
+                terminal.print_error(f"{fname} is a directory, not provided alone.")
                 good = False
         if not good:
-            io.tool_error(
+            terminal.print_error(
                 "Provide either a single directory of a git repo, or a list of one or more files."
             )
             return 1
@@ -415,11 +415,15 @@ def main(argv=None, input=None, output=None, force_git_root=None, return_coder=F
             return main(argv, input, output, right_repo_root, return_coder=return_coder)
 
     if args.just_check_update:
-        update_available = check_version(io, just_check=True)
+        update_available = check_version(just_check=True)
         return 0 if not update_available else 1
 
     if args.check_update:
-        check_version(io)
+        update_available = terminal.check_version()
+        
+        if update_available:
+            terminal.print_error("An update is available.")
+            return 1
 
     if args.models:
         models.print_matching_models(io, args.models)
@@ -432,11 +436,11 @@ def main(argv=None, input=None, output=None, force_git_root=None, return_coder=F
 
     if args.verbose:
         show = format_settings(parser, args)
-        io.tool_output(show)
+        terminal.print(show)
 
     cmd_line = " ".join(sys.argv)
     cmd_line = scrub_sensitive_info(args, cmd_line)
-    io.tool_output(cmd_line, log_only=True)
+    terminal.print(cmd_line, log_only=True)
 
     if args.anthropic_api_key:
         os.environ["ANTHROPIC_API_KEY"] = args.anthropic_api_key
@@ -498,7 +502,6 @@ def main(argv=None, input=None, output=None, force_git_root=None, return_coder=F
         coder = Coder.create(
             main_model=main_model,
             edit_format=args.edit_format,
-            io=io,
             repo=repo,
             fnames=fnames,
             pretty=args.pretty,
@@ -522,7 +525,7 @@ def main(argv=None, input=None, output=None, force_git_root=None, return_coder=F
         )
 
     except ValueError as err:
-        io.tool_error(str(err))
+        terminal.print_error(str(err))
         return 1
 
     if return_coder:
@@ -543,7 +546,7 @@ def main(argv=None, input=None, output=None, force_git_root=None, return_coder=F
 
     if args.test:
         if not args.test_cmd:
-            io.tool_error("No --test-cmd provided.")
+            terminal.print_error("No --test-cmd provided.")
             return 1
         test_errors = coder.commands.cmd_test(args.test_cmd)
         if test_errors:
@@ -561,7 +564,7 @@ def main(argv=None, input=None, output=None, force_git_root=None, return_coder=F
     if args.show_repo_map:
         repo_map = coder.get_repo_map()
         if repo_map:
-            io.tool_output(repo_map)
+            terminal.print(repo_map)
         return
 
     if args.apply:
@@ -574,35 +577,35 @@ def main(argv=None, input=None, output=None, force_git_root=None, return_coder=F
 
     if "VSCODE_GIT_IPC_HANDLE" in os.environ:
         args.pretty = False
-        io.tool_output("VSCode terminal detected, pretty output has been disabled.")
+        terminal.print("VSCode terminal detected, pretty output has been disabled.")
 
-    io.tool_output('Use /help <question> for help, run "aider --help" to see cmd line args')
+    terminal.print('Use /help <question> for help, run "aider --help" to see cmd line args')
 
     if git_root and Path.cwd().resolve() != Path(git_root).resolve():
-        io.tool_error(
+        terminal.print_error(
             "Note: in-chat filenames are always relative to the git working dir, not the current"
             " working dir."
         )
 
-        io.tool_error(f"Cur working dir: {Path.cwd()}")
-        io.tool_error(f"Git working dir: {git_root}")
+        terminal.print_error(f"Cur working dir: {Path.cwd()}")
+        terminal.print_error(f"Git working dir: {git_root}")
 
     if args.message:
         io.add_to_input_history(args.message)
-        io.tool_output()
+        terminal.print()
         coder.run(with_message=args.message)
         return
 
     if args.message_file:
         try:
             message_from_file = io.read_text(args.message_file)
-            io.tool_output()
+            terminal.print()
             coder.run(with_message=message_from_file)
         except FileNotFoundError:
-            io.tool_error(f"Message file not found: {args.message_file}")
+            terminal.print_error(f"Message file not found: {args.message_file}")
             return 1
         except IOError as e:
-            io.tool_error(f"Error reading message file: {e}")
+            terminal.print_error(f"Error reading message file: {e}")
             return 1
         return
 
@@ -613,14 +616,7 @@ def main(argv=None, input=None, output=None, force_git_root=None, return_coder=F
     thread.daemon = True
     thread.start()
 
-    while True:
-        try:
-            coder.run()
-            return
-        except SwitchCoder as switch:
-            coder = Coder.create(io=io, from_coder=coder, **switch.kwargs)
-            coder.show_announcements()
-
+    terminal.run(coder, **switch.kwargs)
 
 def load_slow_imports():
     # These imports are deferred in various ways to

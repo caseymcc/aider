@@ -153,14 +153,17 @@ class Commands:
             return
         return sorted(fun())
 
-    def get_commands(self):
+    def get_commands(self, add_slash=True):
         commands = []
         for attr in dir(self):
             if not attr.startswith("cmd_"):
                 continue
             cmd = attr[4:]
             cmd = cmd.replace("_", "-")
-            commands.append("/" + cmd)
+            if add_slash:
+                commands.append("/" + cmd)
+            else:
+                commands.append(cmd)
 
         return commands
 
@@ -630,11 +633,13 @@ class Commands:
             combined_output = result.stdout
         except Exception as e:
             self.io.tool_error(f"Error running /git command: {e}")
+            return f"Error running /git command: {e}"
 
         if combined_output is None:
             return
 
         self.io.tool_output(combined_output)
+        return combined_output
 
     def cmd_test(self, args):
         "Run a shell command and add the output to the chat on non-zero exit code"

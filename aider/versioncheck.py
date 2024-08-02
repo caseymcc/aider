@@ -1,4 +1,3 @@
-import sys
 import time
 from pathlib import Path
 
@@ -9,13 +8,13 @@ from aider import utils
 from aider.dump import dump  # noqa: F401
 
 
-def check_version(io, just_check=False):
+def check_version(just_check=False):
     fname = Path.home() / ".aider" / "caches" / "versioncheck"
     if not just_check and fname.exists():
         day = 60 * 60 * 24
         since = time.time() - fname.stat().st_mtime
         if since < day:
-            return
+            return False, ""
 
     # To keep startup fast, avoid importing this unless needed
     import requests
@@ -34,8 +33,7 @@ def check_version(io, just_check=False):
             current_version
         )
     except Exception as err:
-        io.tool_error(f"Error checking pypi for new version: {err}")
-        return False
+        return False, "Error checking pypi for new version: {err}"
     finally:
         fname.parent.mkdir(parents=True, exist_ok=True)
         fname.touch()
@@ -48,21 +46,7 @@ def check_version(io, just_check=False):
         return is_update_available
 
     if not is_update_available:
-        return False
+        return False, ""
 
-    cmd = utils.get_pip_install(["--upgrade", "aider-chat"])
+    return True, latest_version
 
-    text = f"""
-Newer aider version v{latest_version} is available. To upgrade, run:
-
-    {' '.join(cmd)}
-"""
-    io.tool_error(text)
-
-    if io.confirm_ask("Run pip install?"):
-        success, _output = utils.run_install(cmd)
-        if success:
-            io.tool_output("Re-run aider to use new version.")
-            sys.exit()
-
-    return True
