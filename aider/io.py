@@ -9,6 +9,9 @@ from .utils import is_image_file
 
 
 class InputOutput:
+    num_error_outputs = 0
+    num_user_asks = 0
+    
     def __init__(
         self,
         input_history_file=None,
