@@ -1,6 +1,4 @@
 import base64
-#import os
-#from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
 
@@ -16,19 +14,11 @@ class InputOutput:
 
     def __init__(
         self,
-#        pretty=True,
-#        yes=False,
         input_history_file=None,
         chat_history_file=None,
-#        input=None,
-#        output=None,
-#        user_input_color="blue",
-#        tool_output_color=None,
-#        tool_error_color="red",
         encoding="utf-8",
         dry_run=False,
         llm_history_file=None,
-#        editingmode=EditingMode.EMACS,
     ):
         
         self.input_history_file = input_history_file
@@ -122,7 +112,7 @@ class InputOutput:
         return False
 
     def prompt_ask(self, question, default=None):
-        return
+        return "no"
 
     def tool_error(self, message="", strip=True):
         return
