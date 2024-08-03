@@ -510,22 +510,29 @@ class Commands:
         res = list(map(str, matched_files))
         return res
 
+    def get_file_path(self, fname):
+        if Path(fname).is_absolute():
+            fpath = Path(fname)
+        else:
+            fpath = Path(self.coder.root) / fname
+        return fpath
+
+
     def cmd_add(self, args):
         "Add files to the chat so GPT can edit them or review them in detail"
 
         added_fnames = []
+        missing_fnames = []
+        ignored_fnames = []
 
         all_matched_files = set()
 
         filenames = parse_quoted_filenames(args)
         for word in filenames:
-            if Path(word).is_absolute():
-                fname = Path(word)
-            else:
-                fname = Path(self.coder.root) / word
+            fname = self.get_file_path(word)
 
             if self.coder.repo and self.coder.repo.ignored_file(fname):
-                self.io.tool_error(f"Skipping {fname} that matches aiderignore spec.")
+                ignored_fnames.append(word)
                 continue
 
             if fname.exists():
@@ -540,15 +547,17 @@ class Commands:
                 all_matched_files.update(matched_files)
                 continue
 
-            if self.io.confirm_ask(f"No files matched '{word}'. Do you want to create {fname}?"):
-                if "*" in str(fname) or "?" in str(fname):
-                    self.io.tool_error(f"Cannot create file with wildcard characters: {fname}")
-                else:
-                    try:
-                        fname.touch()
-                        all_matched_files.add(str(fname))
-                    except OSError as e:
-                        self.io.tool_error(f"Error creating file {fname}: {e}")
+            missing_fnames.append(word)
+            
+#            if self.io.confirm_ask(f"No files matched '{word}'. Do you want to create {fname}?"):
+#                if "*" in str(fname) or "?" in str(fname):
+#                    self.io.tool_error(f"Cannot create file with wildcard characters: {fname}")
+#                else:
+#                    try:
+#                        fname.touch()
+#                        all_matched_files.add(str(fname))
+#                    except OSError as e:
+#                        self.io.tool_error(f"Error creating file {fname}: {e}")
 
         for matched_file in all_matched_files:
             abs_file_path = self.coder.abs_root_path(matched_file)
@@ -578,15 +587,47 @@ class Commands:
                     self.coder.check_added_files()
                     added_fnames.append(matched_file)
 
-        if not added_fnames:
-            return
+        return added_fnames, missing_fnames
+    
+#        if not added_fnames:
+#            return
+#
+#        # only reply if there's been some chatting since the last edit
+#        if not self.coder.cur_messages:
+#            return
+#
+#        reply = prompts.added_files.format(fnames=", ".join(added_fnames))
+#        return reply
 
-        # only reply if there's been some chatting since the last edit
-        if not self.coder.cur_messages:
-            return
+    def cmd_create(self, args):
+        created_fnames = []
+        failed_fnames = []
+        
+        filenames = parse_quoted_filenames(args)
+        for word in filenames:
+            fname = self.get_file_path(word)
+            
+            if self.coder.repo and self.coder.repo.ignored_file(fname):
+                failed_fnames.append({str(word): "repo_ignored"})
+                continue
 
-        reply = prompts.added_files.format(fnames=", ".join(added_fnames))
-        return reply
+            if fname.exists():
+                failed_fnames.append({str(word): "file_exists"})
+                continue
+            
+            if "*" in str(fname) or "?" in str(fname):
+                self.io.tool_error(f"Cannot create file with wildcard characters: {fname}")
+                failed_fnames.append({str(word): "wildcard"})
+            else:
+                try:
+                    fname.touch()
+                    all_matched_files.add(str(fname))
+                except OSError as e:
+                    self.io.tool_error(f"Error creating file {fname}: {e}")
+                    failed_fnames.append({str(word): "error"})
+                    
+        return created_fnames, failed_fnames
+                
 
     def completions_drop(self):
         files = self.coder.get_inchat_relative_files()

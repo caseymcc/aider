@@ -18,7 +18,6 @@ from rich.console import Console
 from rich.text import Text
 
 from aider.coders import Command, CommandResults, Coder
-from aider.commands import SwitchModel
 from aider import utils
 
 from aider.versioncheck import check_version
@@ -65,7 +64,7 @@ class AutoCompleter(Completer):
     def get_command_completions(self, text, words):
         candidates = []
         if len(words) == 1 and not text[-1].isspace():
-            partial = words[0].lower()
+            partial = words[0].lower()[1:]
             candidates = [cmd for cmd in self.command_names if cmd.startswith(partial)]
             return candidates
 
@@ -328,6 +327,11 @@ class Terminal:
             type, input = self.parse_command(inp[1:])
             
             response = coder.run_command(type, input)
+            
+            if type == 'add`:
+                if len(missing_fnames) > 0:
+                    
+                
             if type == "add" or type == "remove":
                 self.update_files(coder)
                 

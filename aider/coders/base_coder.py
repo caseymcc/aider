@@ -193,9 +193,7 @@ class Coder:
                 max_map_tokens = 2048
                 if map_tokens > max_map_tokens:
                     lines.append(
-                        f"Warning: map-tokens > {max_map_tokens} is not recomme        for coder in coders.__all__:
-            if hasattr(coder, "edit_format") and coder.edit_format == edit_format:
-                res = codernded as too much"
+                        f"Warning: map-tokens > {max_map_tokens} is not recommended as too much"
                         " irrelevant code can confuse GPT."
                     )
             else:

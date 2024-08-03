@@ -258,7 +258,7 @@ def register_models(git_root, model_settings_fname, terminal, verbose=False):
         files_loaded = models.register_models(model_settings_files)
         if len(files_loaded) > 0:
             if verbose:
-                terminal.print("Loaded model settings from:)
+                terminal.print("Loaded model settings from:")
                 for file_loaded in files_loaded:
                     terminal.print(f"  - {file_loaded}")  # noqa: E221
     except Exception as e:
@@ -616,7 +616,7 @@ def main(argv=None, input=None, output=None, force_git_root=None, return_coder=F
     thread.daemon = True
     thread.start()
 
-    terminal.run(coder, **switch.kwargs)
+    terminal.run(coder)
 
 def load_slow_imports():
     # These imports are deferred in various ways to
