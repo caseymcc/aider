@@ -117,6 +117,9 @@ class AutoCompleter(Completer):
                     )
                     
 class Terminal(InputOutput):
+    num_error_outputs = 0
+    num_user_asks = 0
+    
     def __init__(
         self,
         pretty=True,
@@ -140,10 +143,6 @@ class Terminal(InputOutput):
             dry_run=dry_run,
             llm_history_file=llm_history_file,
         )
-        self.lines = []
-        self.num_user_asks = 0
-        self.yes = yes
-        
         self.editingmode = editingmode
         no_color = os.environ.get("NO_COLOR")
         if no_color is not None and no_color != "":
