@@ -295,29 +295,15 @@ class Terminal(InputOutput):
         return res
     
     def tool_error(self, message="", strip=True):
-        self.num_error_outputs += 1
-
-        if message.strip():
-            if "\n" in message:
-                for line in message.splitlines():
-                    self.append_chat_history(line, linebreak=True, blockquote=True, strip=strip)
-            else:
-                if strip:
-                    hist = message.strip()
-                else:
-                    hist = message
-                self.append_chat_history(hist, linebreak=True, blockquote=True)
+        super().tool_error(message, strip=strip)
 
         message = Text(message)
         style = dict(style=self.tool_error_color) if self.tool_error_color else dict()
         self.console.print(message, **style)
 
     def tool_output(self, *messages, log_only=False):
-        if messages:
-            hist = " ".join(messages)
-            hist = f"{hist.strip()}"
-            self.append_chat_history(hist, linebreak=True, blockquote=True)
-
+        super().tool_output(*messages, log_only=log_only)
+        
         if not log_only:
             messages = list(map(Text, messages))
             style = dict(style=self.tool_output_color) if self.tool_output_color else dict()

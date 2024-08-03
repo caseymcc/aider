@@ -115,10 +115,24 @@ class InputOutput:
         return "no"
 
     def tool_error(self, message="", strip=True):
-        return
+        self.num_error_outputs += 1
+        
+        if message.strip():
+            if "\n" in message:
+                for line in message.splitlines():
+                    self.append_chat_history(line, linebreak=True, blockquote=True, strip=strip)
+            else:
+                if strip:
+                    hist = message.strip()
+                else:
+                    hist = message
+                self.append_chat_history(hist, linebreak=True, blockquote=True)
 
     def tool_output(self, *messages, log_only=False):
-        return
+        if messages:
+            hist = " ".join(messages)
+            hist = f"{hist.strip()}"
+            self.append_chat_history(hist, linebreak=True, blockquote=True)
 
     def append_chat_history(self, text, linebreak=False, blockquote=False, strip=True):
         if blockquote:
