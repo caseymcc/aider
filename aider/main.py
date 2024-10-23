@@ -19,6 +19,7 @@ from aider.commands import Commands, SwitchCoder
 from aider.format_settings import format_settings, scrub_sensitive_info
 from aider.history import ChatSummary
 from aider.io import InputOutput
+from aider.command_io import CommandIO
 from aider.llm import litellm  # noqa: F401; properly init litellm on launch
 from aider.repo import ANY_GIT_ERROR, GitRepo
 from aider.report import report_uncaught_exceptions
@@ -451,28 +452,38 @@ def main(argv=None, input=None, output=None, force_git_root=None, return_coder=F
     editing_mode = EditingMode.VI if args.vim else EditingMode.EMACS
 
     def get_io(pretty):
-        return InputOutput(
-            pretty,
-            args.yes_always,
-            args.input_history_file,
-            args.chat_history_file,
-            input=input,
-            output=output,
-            user_input_color=args.user_input_color,
-            tool_output_color=args.tool_output_color,
-            tool_warning_color=args.tool_warning_color,
-            tool_error_color=args.tool_error_color,
-            completion_menu_color=args.completion_menu_color,
-            completion_menu_bg_color=args.completion_menu_bg_color,
-            completion_menu_current_color=args.completion_menu_current_color,
-            completion_menu_current_bg_color=args.completion_menu_current_bg_color,
-            assistant_output_color=args.assistant_output_color,
-            code_theme=args.code_theme,
-            dry_run=args.dry_run,
-            encoding=args.encoding,
-            llm_history_file=args.llm_history_file,
-            editingmode=editing_mode,
-        )
+        if args.commandio:
+            return CommandIO(
+                args.yes_always,
+                args.input_history_file,
+                args.chat_history_file,
+                encoding=args.encoding,
+                dry_run=args.dry_run,
+                llm_history_file=args.llm_history_file,
+            )
+        else:
+            return InputOutput(
+                pretty,
+                args.yes_always,
+                args.input_history_file,
+                args.chat_history_file,
+                input=input,
+                output=output,
+                user_input_color=args.user_input_color,
+                tool_output_color=args.tool_output_color,
+                tool_warning_color=args.tool_warning_color,
+                tool_error_color=args.tool_error_color,
+                completion_menu_color=args.completion_menu_color,
+                completion_menu_bg_color=args.completion_menu_bg_color,
+                completion_menu_current_color=args.completion_menu_current_color,
+                completion_menu_current_bg_color=args.completion_menu_current_bg_color,
+                assistant_output_color=args.assistant_output_color,
+                code_theme=args.code_theme,
+                dry_run=args.dry_run,
+                encoding=args.encoding,
+                llm_history_file=args.llm_history_file,
+                editingmode=editing_mode,
+            )
 
     io = get_io(args.pretty)
     try:
@@ -588,7 +599,11 @@ def main(argv=None, input=None, output=None, force_git_root=None, return_coder=F
         editor_model=args.editor_model,
         editor_edit_format=args.editor_edit_format,
     )
-
+    
+    if args.commandio:
+        if isinstance(io, CommandIO):
+            io.set_edit_format(main_model.edit_format)
+        
     if args.verbose:
         io.tool_output("Model info:")
         io.tool_output(json.dumps(main_model.info, indent=4))
