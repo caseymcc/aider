@@ -73,7 +73,7 @@ jobs:
         if [ "${{ runner.os }}" = "Windows" ]; then
           DOCKERFILE="scripts/Dockerfile.windows.cio"
         else
-          DOCKERFILE="scripts/Dockerfile.cio"
+          DOCKERFILE="scripts/Dockerfile.linux.cio"
         fi
         docker run --rm \
           -v ${{ github.workspace }}:/repo \
